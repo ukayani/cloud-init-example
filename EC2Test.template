@@ -15,6 +15,10 @@
     "SubnetId": {
       "Type": "AWS::EC2::Subnet::Id",
       "Description": "Subnet in which to create container instances"
+    },
+    "UserDataUrl": {
+      "Type": "String",
+      "Description": "Url to a user-data script"
     }
   },
   "Resources" : {
@@ -24,7 +28,7 @@
         "ImageId" : "ami-b73b63a0",
         "KeyName" : { "Ref" : "KeyName" },
         "InstanceType": "t2.micro",
-        "Tags" : [ {"Key" : "Name", "Value" : "EC2-UMAIR"}],
+        "Tags" : [ {"Key" : "Name", "Value" : "EC2-UserData-Test"}],
         "SecurityGroupIds" : [{ "Ref" : "InstanceSecurityGroup" }],
         "SubnetId": {"Ref": "SubnetId"},
         "UserData" : {"Fn::Base64": {
@@ -50,7 +54,7 @@
               "MIME-Version: 1.0\n",
               "Content-Type: text/x-include-url; charset=\"us-ascii\"\n",
               "\n",
-              "https://s3.amazonaws.com/cf-cloud-init-scripts/ecs/AWSECSLogsUserData\n",
+              {"Fn::Sub": "${UserDataUrl}\n"},
               "--==BOUNDARY==\n",
               ]]}
               }
