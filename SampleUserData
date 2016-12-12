@@ -4,7 +4,7 @@ MIME-Version: 1.0
 
 --===============2678395050260980330==
 MIME-Version: 1.0
-Content-Type: text/text/x-shellscript; charset="us-ascii"
+Content-Type: text/x-shellscript; charset="us-ascii"
 #!/bin/bash
 
 echo "Part 3" >> /var/log/order.log
