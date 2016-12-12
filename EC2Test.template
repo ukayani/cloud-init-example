@@ -1,0 +1,79 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "",
+
+  "Parameters" : {
+    "KeyName": {
+      "Type": "AWS::EC2::KeyPair::KeyName",
+      "Description": "Name of an existing EC2 KeyPair to enable SSH access to the ECS instances"
+    },
+    "VpcId": {
+      "Type": "AWS::EC2::VPC::Id",
+      "Description": "VPC in which to create stack"
+    },
+    "SubnetId": {
+      "Type": "AWS::EC2::Subnet::Id",
+      "Description": "Subnet in which to create container instances"
+    }
+  },
+  "Resources" : {
+    "Ec2Instance" : {
+      "Type" : "AWS::EC2::Instance",
+      "Properties" : {
+        "ImageId" : "ami-b73b63a0",
+        "KeyName" : { "Ref" : "KeyName" },
+        "InstanceType": "t2.micro",
+        "Tags" : [ {"Key" : "Name", "Value" : "EC2-UMAIR"}],
+        "SecurityGroupIds" : [{ "Ref" : "InstanceSecurityGroup" }],
+        "SubnetId": {"Ref": "SubnetId"},
+        "UserData" : {"Fn::Base64": {
+          "Fn::Join": [
+            "",
+            [
+              "Content-Type: multipart/mixed; boundary=\"==BOUNDARY==\"\n",
+              "MIME-Version: 1.0\n",
+              "\n",
+              "--==BOUNDARY==\n",
+              "MIME-Version: 1.0\n",
+              "Content-Type: text/x-shellscript; charset=\"us-ascii\"\n",
+              "#!/bin/bash\n",
+              "echo \"Part1\" >> /var/log/order.log\n",
+              "echo \"Executing: Part1\"\n",
+              "--==BOUNDARY==\n",
+              "MIME-Version: 1.0\n",
+              "Content-Type: text/x-shellscript; charset=\"us-ascii\"\n",
+              "#!/bin/bash\n",
+              "echo \"Part2\" >> /var/log/order.log\n",
+              "echo \"Executing: Part2\"\n",
+              "--==BOUNDARY==\n",
+              "MIME-Version: 1.0\n",
+              "Content-Type: text/x-include-url; charset=\"us-ascii\"\n",
+              "\n",
+              "https://s3.amazonaws.com/cf-cloud-init-scripts/ecs/AWSECSLogsUserData\n",
+              "--==BOUNDARY==\n",
+              ]]}
+              }
+      }
+    },
+    "InstanceSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Allow http to client host",
+        "VpcId" : {"Ref" : "VpcId"},
+        "SecurityGroupIngress" : [{
+          "IpProtocol" : "tcp",
+          "FromPort" : "22",
+          "ToPort" : "22",
+          "CidrIp" : "0.0.0.0/0"
+        }]
+      }
+    }
+  },
+  "Outputs": {
+    "EC2IP": {
+      "Description": "Private IP of instance",
+      "Value": {"Fn::GetAtt": ["Ec2Instance", "PrivateIp"]}
+    }
+  }
+}

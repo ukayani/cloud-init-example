@@ -1,0 +1,55 @@
+From nobody Fri Dec  9 00:31:04 2016
+Content-Type: multipart/mixed; boundary="===============2678395050260980330=="
+MIME-Version: 1.0
+
+--===============2678395050260980330==
+MIME-Version: 1.0
+Content-Type: text/text/x-shellscript; charset="us-ascii"
+#!/bin/bash
+
+echo "Part 3" >> /var/log/order.log
+
+--===============2678395050260980330==
+MIME-Version: 1.0
+Content-Type: text/cloud-boothook; charset="us-ascii"
+
+#cloud-boothook
+echo "Part 4" >> /var/log/order.log
+
+--===============2678395050260980330==
+MIME-Version: 1.0
+Content-Type: text/cloud-config; charset="us-ascii"
+
+#cloud-config
+runcmd:
+  - echo "Part 5 runcmd" >> /var/log/order.log
+bootcmd:
+  - echo "Part 5 bootcmd" >> /var/log/order.log
+
+--===============2678395050260980330==
+MIME-Version: 1.0
+Content-Type: text/upstart-job; charset="us-ascii"
+
+#upstart-job
+description "Sample upstart job"
+author "Test"
+
+start on stopped rc RUNLEVEL=[345]
+
+script
+	echo "Part 6" >> /var/log/order.log
+end script
+--===============2678395050260980330==
+MIME-Version: 1.0
+Content-Type: text/upstart-job; charset="us-ascii"
+
+#upstart-job
+description "Sample upstart job which triggers at same time as rc scripts (This won't execute on first boot)"
+author "Test"
+
+start on starting rc RUNLEVEL=[345]
+
+script
+	echo "Part 7" >> /var/log/order.log
+end script
+--===============2678395050260980330==--
