@@ -147,6 +147,8 @@ them to the standard user data parsing logic
 
 ##Inside SampleUserData
 
+Part X links to our SampleUserData file which contains the following parts:
+
 ### Part 3
 - Format: x-shellscript
 - Action: append partname to `/var/log/order.log`
@@ -172,7 +174,7 @@ them to the standard user data parsing logic
 
 # Results
 
-As we can see in the files user data part in our example appends the part name to a log in `/var/log/order.log`
+As we can see the cloud-init types in our example append their respective part name to a log in `/var/log/order.log`
 
 Based on the order in which the part names appear, we can see the order in which cloud-init 
 executes the parts.
@@ -247,4 +249,105 @@ We can see that after reboot the following parts ran:
 We can conclude that the only cloud-init types which execute during
 every standard boot are `upstart-job`, `cloud-boothook`, and `cloud-config bootcmd`. 
 Everything else from our list ran `only once`
+
+# upstart, cloud-config and rc
+
+## What is upstart?
+
+Linux/unix platforms typically have a process that runs once the system boots up. This process is responsible
+for running all other processes on the system. Because it is the parent process of all other processes,
+it is designated PID 1. This process is always running so it is a daemon process (running in the background). 
+
+Traditionally, this process was called `init` but it has since been replaced by better alternatives such as `upstart` and `systemd`.
+
+The reason init was replaced is because it runs child processes in sequential order thereby increasing the time it takes
+for the system to boot. New alternative such as `upstart` is an event-based init system that can asynchronously run processes.
+
+With `upstart` you can have processes be started when certain events are fired, such as another process starting or stopping
+
+## `/etc/init`
+
+With `upstart` as we saw with the user-data `upstart-job` config, the resulting file is stored by cloud-init in the `/etc/init` folder.
+This folder contains all upstart jobs, which can be long lived (daemon) or short lived (task). 
+
+Lets examine one of the upstart-jobs we defined in our user-data:
+
+```bash
+#upstart-job
+description "Sample upstart job"
+author "Test"
+
+start on stopped rc RUNLEVEL=[345]
+
+script
+	echo "Part 6" >> /var/log/order.log
+end script
+```
+
+All upstart jobs have a line similar to the following:
+`start on stopped rc RUNLEVEL=[345]`
+
+Ignoring the `RUNLEVEL=[345]`, the line is fairly self-explanatory.
+
+It typically takes the form `[start/stop] on [event] [jobname]`
+where: 
+- `start/stop` is action to take on the current job. 
+- `event` is an event emitted by (possibly) another job or the system
+- `jobname` is the name of another job (job names are defined by the filename of the job in `/etc/init`)
+
+In our case, we are telling upstart to run the `script` portion of our job
+when the job named `rc` has *stopped*.
+
+**What exactly does the rc job do?**
+
+The rc job triggers a process which runs services defined in `/etc/rc.d/rc{X}.d`
+where **X** is the current system [run level](https://en.wikipedia.org/wiki/Runlevel). In traditional System V style linux systems, runlevels were
+categorizations of the state of a machine ie. shutting down, rebooting, running with disk/network initialized etc.
+
+The default run-level in Amazon Linux is **3**, which means the system is running in a normal state. 
+So when the rc job runs, it runs scripts/services in `/etc/rc.d/rc3.d`
+
+As it turns out, one of the scripts/services defined in `/etc/rc.d/rc3.d` is **`cloud-init`** !
+
+## Full circle: When does cloud-init run?
+
+So as we saw in the previous section, `upstart` contains a job called `rc` which eventually executes
+`cloud-init` as part of the many scripts it executes.
+
+Once cloud init runs, it downloads our user-data (which we pass into our EC2 instance definition). 
+It then parses this user data and stores the parts in various locations.
+
+1. Stores upstart-jobs in `/etc/init`
+2. Stores shellscripts and runcmd in `/var/lib/cloud/instance/scripts`
+3. Stores boothooks in `/var/lib/cloud/instance/boothooks`
+
+For boothooks/bootcmd, cloud-init runs these immediately hence the reason they show up early in our `order.log`
+
+It then executes all shellscripts/runcmd.
+
+Once `cloud-init` finishes executing and all other scripts for the given run level are done executing, the upstart `rc`
+job emits the `stopped` event. 
+
+If we remember **Part 6**, the upstart-job had the following line: `start on stopped rc RUNLEVEL=[345]`
+When the `rc` job completes its execution and emits the `stopped` event, upstart will start our **part 6** upstart-job.
+
+This explains why we have *Part 6* printed last in our `order.log` after first boot.
+ 
+### So why doesn't *Part 7* execute on first boot?
+ 
+When `upstart` runs the `rc` job it emits the `starting` event for `rc` and then `rc` proceeds to
+execute the scripts/services for the given run level. As we mentioned above, `cloud-init` is one of the
+services run by `rc`. Because cloud-init starts after the `starting` event for `rc` is emitted, it would be
+impossible for the **Part 7** upstart-job to be executed on first boot; the event which it depends on occurs before the job is created.
+
+Upon rebooting the system, we see that the first part to run is `Part 7` (as seen in order.log). This makes sense, since upstart
+would start this job before `cloud-init` is run.
+
+# Resources
+
+- [Upstart Primer](http://upstart.ubuntu.com/getting-started.html)
+- [Cloud Init Formats](http://cloudinit.readthedocs.io/en/latest/topics/format.html)
+- [History of Init](https://en.wikipedia.org/wiki/Init)
+
+
 
