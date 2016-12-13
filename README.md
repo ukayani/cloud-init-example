@@ -203,3 +203,48 @@ From this we can derive the following order of execution:
     - This runcmd instruction is treated similarly to x-shellscript in terms of order of execution
 5. upstart-job
     - This upstart job is last to execute since it hooks on the completion of the rc task (more on rc below)
+    
+Moreover, the reason `cloud-boothook` ran before cloud-config `bootcmd` is because of their ordering within the userdata file.
+Within the user-data file, the `boothook` is defined as part 4 and `bootcmd` is defined part 5.
+    
+Similarly, `x-shellscript` ran before cloud config `runcmd` because of the ordering within the userdata file.
+    
+So, a general order of execution for cloud-init types is:
+
+1. `cloud-boothook` or `bootcmd` (cloud-config)
+2. `x-shellscript`  or `runcmd` (cloud-config)
+3. `upstart-job`
+
+Notice, we had a part 7 upstart-job but it didn't show up in our order.log file (more on this below). 
+  
+## After rebooting
+
+After rebooting the machine, lets see which cloud-init types are executed:
+
+`/var/log/order.log`
+
+```
+Part 4
+Part 5 bootcmd
+Part1
+Part2
+Part 3
+Part 5 runcmd
+Part 6
+Part 7
+Part 4
+Part 5 bootcmd
+Part 6
+```
+  
+We can see that after reboot the following parts ran:
+  
+1. Part 7 - upstart-job on `starting rc`
+2. Part 4 - cloud-boothook  
+3. Part 5 - cloud-config bootcmd
+4. Part 6 - upstart-job on `stopped rc`
+
+We can conclude that the only cloud-init types which execute during
+every standard boot are `upstart-job`, `cloud-boothook`, and `cloud-config bootcmd`. 
+Everything else from our list ran `only once`
+
