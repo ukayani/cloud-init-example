@@ -195,15 +195,15 @@ Part 6
 
 From this we can derive the following order of execution:
 
-1. cloud-boothook 
+1. **cloud-boothook** 
     - This config type is the earliest to run
-2. cloud-config bootcmd
+2. **cloud-config bootcmd**
     - This bootcmd instruction is treated similarly to cloud-boothook so it runs early
-3. x-shellscript
+3. **x-shellscript**
     - Shellscript types are executed after boothooks and bootcmd
-4. cloud-config runcmd
+4. **cloud-config runcmd**
     - This runcmd instruction is treated similarly to x-shellscript in terms of order of execution
-5. upstart-job
+5. **upstart-job**
     - This upstart job is last to execute since it hooks on the completion of the rc task (more on rc below)
     
 Moreover, the reason `cloud-boothook` ran before cloud-config `bootcmd` is because of their ordering within the userdata file.
@@ -263,7 +263,7 @@ Traditionally, this process was called `init` but it has since been replaced by 
 The reason init was replaced is because it runs child processes in sequential order thereby increasing the time it takes
 for the system to boot. New alternative such as `upstart` is an event-based init system that can asynchronously run processes.
 
-With `upstart` you can have processes be started when certain events are fired, such as another process starting or stopping
+With `upstart` you can have processes started when certain events are fired, such as another process starting or stopping
 
 ## `/etc/init`
 
@@ -305,7 +305,7 @@ where **X** is the current system [run level](https://en.wikipedia.org/wiki/Runl
 categorizations of the state of a machine ie. shutting down, rebooting, running with disk/network initialized etc.
 
 The default run-level in Amazon Linux is **3**, which means the system is running in a normal state. 
-So when the rc job runs, it runs scripts/services in `/etc/rc.d/rc3.d`
+So when the rc job runs (in run-level 3), it runs scripts/services in `/etc/rc.d/rc3.d`
 
 As it turns out, one of the scripts/services defined in `/etc/rc.d/rc3.d` is **`cloud-init`** !
 
@@ -342,6 +342,24 @@ impossible for the **Part 7** upstart-job to be executed on first boot; the even
 
 Upon rebooting the system, we see that the first part to run is `Part 7` (as seen in order.log). This makes sense, since upstart
 would start this job before `cloud-init` is run.
+
+# TLDR;
+
+So, a general order of execution for cloud-init types is:
+
+1. `cloud-boothook` or `bootcmd` (cloud-config)
+    - Run every time the system boots
+2. `x-shellscript`  or `runcmd` (cloud-config)
+    - Runs only one time (first boot)
+3. `upstart-job`
+    - Runs every time system boots
+
+**cloud-init** is bootstrapped in the following manner:
+
+**Upstart** --[runs]--> **rc** ---[runs]--> **cloud-init** 
+
+Because the upstart `rc` job runs `cloud-init`, any upstart jobs created by `cloud-init` which are intended to execute on first boot must trigger on events which occur on or after
+`rc` stopped.
 
 # Resources
 
