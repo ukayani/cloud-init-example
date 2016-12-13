@@ -250,7 +250,7 @@ We can conclude that the only cloud-init types which execute during
 every standard boot are `upstart-job`, `cloud-boothook`, and `cloud-config bootcmd`. 
 Everything else from our list ran `only once`
 
-# upstart, cloud-config and rc
+# upstart, cloud-init and rc
 
 ## What is upstart?
 
